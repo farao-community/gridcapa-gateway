@@ -3,7 +3,7 @@
 Gricapa-gateway is a not only gateway that handles routing, but it also acts as a security gate gor back end services. 
 The idea is make the gateway act as an oauth2-resource server itself, so the JWT token is eagerly checked at this entry level, and not relayed to the rest of backend services.  
 
-Any REST request to the grid-cappa backend needs to have a valid JWT token in its Bearer header.
+Any REST request to the grid-capa backend needs to have a valid JWT token in its Bearer header.
 
 For developments, you can plug this service with an openId provider of your choice.
 
