@@ -1,0 +1,26 @@
+server:
+  port: 9090
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:6060/auth/realms/Gridcapa-realm/protocol/openid-connect/certs  # host:port must be tuned
+          issuer-uri: http://localhost:6060/auth/realms/Gridcapa-realm    # host:port must be tuned
+  cloud:
+    gateway:
+      routes:
+        - id: x-task-manager    # with x process name
+          uri: http://localhost:8080    # host:port must be tuned
+          predicates:
+            - Path=/tasks/**
+        - id: x-job-launcher     # with x process name
+          uri: http://localhost:8080   # host:port must be tuned
+          predicates:
+            - Path=/start/**
+
+#logging:
+ # level:
+  #  org:
+   #   springframework:
+    #    security: DEBUG
