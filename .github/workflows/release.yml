@@ -65,7 +65,7 @@ jobs:
           name: farao/gridcapa-gateway
           username: farao
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          tags: v${{ github.event.inputs.releaseVersion }}
+          tags: ${{ github.event.inputs.releaseVersion }}
 
       - name: Change Maven version to next version
         run: mvn --batch-mode versions:set -DgenerateBackupPoms=false -DnewVersion=${{ github.event.inputs.nextVersion }}-SNAPSHOT
