@@ -1,5 +1,0 @@
-com.farao_community.farao.gridcapa.gateway.ResourceServerSecurityConfiguration#bearerTokenConverter()Lorg/springframework/security/web/server/authentication/ServerAuthenticationConverter;
-org.springframework.security.oauth2.server.resource.web.server.ServerBearerTokenAuthenticationConverter#instance-init#
-org.springframework.security.oauth2.server.resource.web.server.ServerBearerTokenAuthenticationConverter#<init>()V
-==
-setAllowUriQueryParameter org.springframework.security.oauth2.server.resource.web.server.ServerBearerTokenAuthenticationConverter#setAllowUriQueryParameter(Z)V
