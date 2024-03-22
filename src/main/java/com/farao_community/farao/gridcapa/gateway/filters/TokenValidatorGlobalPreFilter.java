@@ -8,7 +8,6 @@
 package com.farao_community.farao.gridcapa.gateway.filters;
 
 import com.farao_community.farao.gridcapa.gateway.GatewayService;
-import com.farao_community.farao.gridcapa.gateway.dto.TokenIntrospection;
 import com.farao_community.farao.gridcapa.gateway.exceptions.IncorrectAuthorizationHeaderException;
 import com.farao_community.farao.gridcapa.gateway.exceptions.NoAccessTokenFoundInQueryException;
 import com.nimbusds.jose.JOSEException;
@@ -25,7 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.core.Ordered;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -37,10 +37,11 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
-public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
+public class TokenValidatorGlobalPreFilter implements GlobalFilter {
 
-    private static final String UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING = "{}: 401 Unauthorized, Invalid plain JOSE object encoding or inactive opaque token";
+    private static final String UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING = "{}: 401 Unauthorized, Invalid plain JOSE object encoding";
     private static final String UNAUTHORIZED_THE_TOKEN_CANNOT_BE_TRUSTED = "{}: 401 Unauthorized, The token cannot be trusted";
+    private static final String UNAUTHORIZED_ISSUER_IS_NOT_ALLOWED = "{}: 401 Unauthorized, Issuer is not allowed: {}";
     private static final String PARSING_ERROR = "{}: 500 Internal Server Error, error has been reached unexpectedly while parsing";
     private static final String CACHE_OUTDATED = "{}: Bad JSON Object Signing and Encryption, cache outdated";
 
@@ -50,17 +51,15 @@ public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerBaseUri;
 
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
+    private String jwkSetUri;
+
     private JWKSet jwkSetCache = null;
 
     private final GatewayService gatewayService;
 
     public TokenValidatorGlobalPreFilter(GatewayService gatewayService) {
         this.gatewayService = gatewayService;
-    }
-
-    @Override
-    public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 4;
     }
 
     @Override
@@ -79,12 +78,13 @@ public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
             return handleTokenAsJwt(token, exchange, chain);
         } catch (ParseException e) {
             // Invalid plain JOSE object encoding
-            LOGGER.debug("JWTParser.parse ParseException, will attempt to use as opaque token: ({})", e.getMessage());
-            return handleTokenAsOpaqueToken(token, exchange, chain);
+            LOGGER.info(UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING, exchange.getRequest().getPath());
+            return completeWithCode(exchange, HttpStatus.UNAUTHORIZED);
         }
     }
 
     private static String extractAccessToken(ServerHttpRequest request) throws NoAccessTokenFoundInQueryException, IncorrectAuthorizationHeaderException {
+        // TODO Simplify this method if only access_token request parameter is used?
         List<String> authorizationHeaderList = request.getHeaders().get("Authorization");
         List<String> accessTokenQueryList = request.getQueryParams().get("access_token");
 
@@ -123,14 +123,14 @@ public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
 
         LOGGER.debug("checking issuer");
         if (!jwtClaimsSet.getIssuer().startsWith(issuerBaseUri)) {
-            LOGGER.info("{}: 401 Unauthorized, Issuer is not allowed: {}", exchange.getRequest().getPath(), jwtClaimsSet.getIssuer());
+            LOGGER.info(UNAUTHORIZED_ISSUER_IS_NOT_ALLOWED, exchange.getRequest().getPath(), jwtClaimsSet.getIssuer());
             return completeWithCode(exchange, HttpStatus.UNAUTHORIZED);
         }
 
-        return getJwksAndValidateTokenAndSetHeaderUserId(new FilterInfos(exchange, chain, jwt, jwtClaimsSet, clientID, jwsAlg));
+        return validateTokenAndSetHeaderUserId(new FilterInfos(exchange, chain, jwt, jwtClaimsSet, clientID, jwsAlg));
     }
 
-    private Mono<Void> getJwksAndValidateTokenAndSetHeaderUserId(FilterInfos filterInfos) {
+    private Mono<Void> validateTokenAndSetHeaderUserId(FilterInfos filterInfos) {
         if (jwkSetCache == null) {
             try {
                 addJwkSetToCache();
@@ -152,7 +152,6 @@ public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
     }
 
     private void addJwkSetToCache() throws ParseException {
-        String jwkSetUri = gatewayService.getJwkSetUri(issuerBaseUri);
         String jwkSetString = gatewayService.getJwkSet(jwkSetUri);
         jwkSetCache = JWKSet.parse(jwkSetString);
     }
@@ -172,25 +171,10 @@ public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
         if (e instanceof BadJOSEException && jwkSetCache != null) {
             LOGGER.info(CACHE_OUTDATED, filterInfos.exchange().getRequest().getPath());
             jwkSetCache = null;
-            return this.getJwksAndValidateTokenAndSetHeaderUserId(filterInfos);
+            return this.validateTokenAndSetHeaderUserId(filterInfos);
         } else {
             LOGGER.info(UNAUTHORIZED_THE_TOKEN_CANNOT_BE_TRUSTED, filterInfos.exchange().getRequest().getPath());
             return completeWithCode(filterInfos.exchange(), HttpStatus.UNAUTHORIZED);
-        }
-    }
-
-    private Mono<Void> handleTokenAsOpaqueToken(String token, ServerWebExchange exchange, GatewayFilterChain chain) {
-        String opaqueTokenIntrospectionUri = gatewayService.getOpaqueTokenIntrospectionUri(issuerBaseUri);
-        TokenIntrospection tokenIntrospection = gatewayService.getOpaqueTokenIntrospection(opaqueTokenIntrospectionUri, token);
-
-        setHeaderUserId(exchange, tokenIntrospection.getClientId());
-
-        if (tokenIntrospection.getActive()) {
-            LOGGER.debug("Opaque Token verified, it can be trusted");
-            return chain.filter(exchange);
-        } else {
-            LOGGER.info(UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING, exchange.getRequest().getPath());
-            return completeWithCode(exchange, HttpStatus.UNAUTHORIZED);
         }
     }
 
@@ -198,6 +182,16 @@ public class TokenValidatorGlobalPreFilter extends AbstractGlobalPreFilter {
         exchange.getRequest()
             .mutate()
             .headers(h -> h.set(HEADER_USER_ID, userId));
+    }
+
+    protected Mono<Void> completeWithCode(ServerWebExchange exchange, HttpStatus code) {
+        exchange.getResponse().setStatusCode(code);
+        if ("websocket".equalsIgnoreCase(exchange.getRequest().getHeaders().getUpgrade())) {
+            // Force the connection to close for websockets handshakes to workaround apache
+            // httpd reusing the connection for all subsequent requests in this connection.
+            exchange.getResponse().getHeaders().set(HttpHeaders.CONNECTION, "close");
+        }
+        return exchange.getResponse().setComplete();
     }
 
     private record FilterInfos(ServerWebExchange exchange,
