@@ -23,8 +23,9 @@ import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -37,7 +38,8 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
-public class TokenValidatorGlobalPreFilter implements GlobalFilter {
+public class TokenValidatorGatewayFilterFactory
+    extends AbstractGatewayFilterFactory<TokenValidatorGatewayFilterFactory.Config> {
 
     private static final String UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING = "{}: 401 Unauthorized, Invalid plain JOSE object encoding";
     private static final String UNAUTHORIZED_THE_TOKEN_CANNOT_BE_TRUSTED = "{}: 401 Unauthorized, The token cannot be trusted";
@@ -46,7 +48,7 @@ public class TokenValidatorGlobalPreFilter implements GlobalFilter {
     private static final String CACHE_OUTDATED = "{}: Bad JSON Object Signing and Encryption, cache outdated";
 
     private static final String HEADER_USER_ID = "userId";
-    private static final Logger LOGGER = LoggerFactory.getLogger(TokenValidatorGlobalPreFilter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TokenValidatorGatewayFilterFactory.class);
 
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerBaseUri;
@@ -56,15 +58,15 @@ public class TokenValidatorGlobalPreFilter implements GlobalFilter {
 
     private JWKSet jwkSetCache = null;
 
-    private final GatewayService gatewayService;
-
-    public TokenValidatorGlobalPreFilter(GatewayService gatewayService) {
-        this.gatewayService = gatewayService;
-    }
+    private GatewayService gatewayService;
 
     @Override
+    public GatewayFilter apply(Config config) {
+        return this::filter;
+    }
+
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        LOGGER.debug("Filter : {}", getClass().getSimpleName());
+        LOGGER.info("Filter : {}", getClass().getSimpleName());
 
         String token;
         try {
@@ -121,7 +123,7 @@ public class TokenValidatorGlobalPreFilter implements GlobalFilter {
         ClientID clientID = new ClientID(jwtClaimsSet.getAudience().get(0));
         JWSAlgorithm jwsAlg = JWSAlgorithm.parse(jwt.getHeader().getAlgorithm().getName());
 
-        LOGGER.debug("checking issuer");
+        LOGGER.info("checking issuer");
         if (!jwtClaimsSet.getIssuer().startsWith(issuerBaseUri)) {
             LOGGER.info(UNAUTHORIZED_ISSUER_IS_NOT_ALLOWED, exchange.getRequest().getPath(), jwtClaimsSet.getIssuer());
             return completeWithCode(exchange, HttpStatus.UNAUTHORIZED);
@@ -164,7 +166,7 @@ public class TokenValidatorGlobalPreFilter implements GlobalFilter {
         validator.validate(filterInfos.jwt(), null);
 
         // we can safely trust the JWT
-        LOGGER.debug("JWT Token verified, it can be trusted");
+        LOGGER.info("JWT Token verified, it can be trusted");
     }
 
     private Mono<Void> handleValidationException(FilterInfos filterInfos, Exception e) {
@@ -200,5 +202,9 @@ public class TokenValidatorGlobalPreFilter implements GlobalFilter {
                                JWTClaimsSet jwtClaimsSet,
                                ClientID clientID,
                                JWSAlgorithm jwsAlg) {
+    }
+
+    public static class Config {
+        // there is nothing we need to add here as a parameter
     }
 }
