@@ -1,4 +1,4 @@
-package com.farao_community.farao.gridcapa.gateway;
+package com.farao_community.farao.gridcapa.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
