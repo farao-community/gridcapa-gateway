@@ -181,14 +181,14 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         if (e instanceof BadJOSEException && !cacheRefreshed) {
             LOGGER.info(CACHE_OUTDATED, filterInfos.exchange().getRequest().getPath());
             jwkSetCache = null;
-            return this.validateTokenAndSetHeaderUserId(filterInfos);
+            return validateTokenAndSetHeaderUserId(filterInfos);
         } else {
             LOGGER.info(UNAUTHORIZED_THE_TOKEN_CANNOT_BE_TRUSTED, filterInfos.exchange().getRequest().getPath());
             return completeWithCode(filterInfos.exchange(), HttpStatus.UNAUTHORIZED);
         }
     }
 
-    private static void setHeaderUserId(ServerWebExchange exchange, String userId) {
+    protected static void setHeaderUserId(ServerWebExchange exchange, String userId) {
         exchange.getRequest()
             .mutate()
             .headers(h -> h.set(HEADER_USER_ID, userId));
