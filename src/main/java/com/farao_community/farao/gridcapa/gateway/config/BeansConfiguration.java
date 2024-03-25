@@ -11,6 +11,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
+/**
+ * @author Vincent Bochet {@literal <vincent.bochet at rte-france.com>}
+ */
 @Configuration
 public class BeansConfiguration {
 

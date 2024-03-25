@@ -7,5 +7,8 @@
 
 package com.farao_community.farao.gridcapa.gateway.exceptions;
 
+/**
+ * @author Vincent Bochet {@literal <vincent.bochet at rte-france.com>}
+ */
 public class TokenExtractionException extends Exception {
 }

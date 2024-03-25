@@ -36,6 +36,9 @@ import java.text.ParseException;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * @author Vincent Bochet {@literal <vincent.bochet at rte-france.com>}
+ */
 @Component
 public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<Object> {
 
