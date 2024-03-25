@@ -139,9 +139,11 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
     }
 
     private Mono<Void> validateTokenAndSetHeaderUserId(FilterInfos filterInfos) {
+        boolean cacheRefreshed = false;
         if (jwkSetCache == null) {
             try {
                 addJwkSetToCache();
+                cacheRefreshed = true;
             } catch (ParseException e) {
                 LOGGER.info(PARSING_ERROR, filterInfos.exchange().getRequest().getPath());
                 return completeWithCode(filterInfos.exchange(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -151,7 +153,7 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         try {
             validateJwt(filterInfos);
         } catch (JOSEException | BadJOSEException e) {
-            return handleValidationException(filterInfos, e);
+            return handleValidationException(filterInfos, cacheRefreshed, e);
         }
 
         setHeaderUserId(filterInfos.exchange(), filterInfos.jwtClaimsSet().getSubject());
@@ -175,8 +177,8 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         LOGGER.info("JWT Token verified, it can be trusted");
     }
 
-    private Mono<Void> handleValidationException(FilterInfos filterInfos, Exception e) {
-        if (e instanceof BadJOSEException && jwkSetCache != null) {
+    private Mono<Void> handleValidationException(FilterInfos filterInfos, boolean cacheRefreshed, Exception e) {
+        if (e instanceof BadJOSEException && !cacheRefreshed) {
             LOGGER.info(CACHE_OUTDATED, filterInfos.exchange().getRequest().getPath());
             jwkSetCache = null;
             return this.validateTokenAndSetHeaderUserId(filterInfos);
