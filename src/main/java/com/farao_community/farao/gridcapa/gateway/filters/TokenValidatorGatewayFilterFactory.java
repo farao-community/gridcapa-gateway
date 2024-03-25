@@ -7,9 +7,7 @@
 
 package com.farao_community.farao.gridcapa.gateway.filters;
 
-import com.farao_community.farao.gridcapa.gateway.GatewayService;
-import com.farao_community.farao.gridcapa.gateway.exceptions.IncorrectAuthorizationHeaderException;
-import com.farao_community.farao.gridcapa.gateway.exceptions.NoAccessTokenFoundInQueryException;
+import com.farao_community.farao.gridcapa.gateway.exceptions.TokenExtractionException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -30,6 +28,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -38,9 +37,9 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
-public class TokenValidatorGatewayFilterFactory
-    extends AbstractGatewayFilterFactory<TokenValidatorGatewayFilterFactory.Config> {
+public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<Object> {
 
+    private static final String BAD_REQUEST_EXTRACTION_OF_AUTH_TOKEN_FAILED = "{}: 400 Bad Request, extraction of auth token failed";
     private static final String UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING = "{}: 401 Unauthorized, Invalid plain JOSE object encoding";
     private static final String UNAUTHORIZED_THE_TOKEN_CANNOT_BE_TRUSTED = "{}: 401 Unauthorized, The token cannot be trusted";
     private static final String UNAUTHORIZED_ISSUER_IS_NOT_ALLOWED = "{}: 401 Unauthorized, Issuer is not allowed: {}";
@@ -58,10 +57,15 @@ public class TokenValidatorGatewayFilterFactory
 
     private JWKSet jwkSetCache = null;
 
-    private GatewayService gatewayService;
+    private final RestTemplate restTemplate;
+
+    public TokenValidatorGatewayFilterFactory(RestTemplate restTemplate) {
+        super(Object.class);
+        this.restTemplate = restTemplate;
+    }
 
     @Override
-    public GatewayFilter apply(Config config) {
+    public GatewayFilter apply(Object config) {
         return this::filter;
     }
 
@@ -71,8 +75,8 @@ public class TokenValidatorGatewayFilterFactory
         String token;
         try {
             token = extractAccessToken(exchange.getRequest());
-        } catch (NoAccessTokenFoundInQueryException | IncorrectAuthorizationHeaderException e) {
-            LOGGER.info("{}: 400 Bad Request, incorrect Authorization header value", exchange.getRequest().getPath());
+        } catch (TokenExtractionException tee) {
+            LOGGER.info(BAD_REQUEST_EXTRACTION_OF_AUTH_TOKEN_FAILED, exchange.getRequest().getPath());
             return completeWithCode(exchange, HttpStatus.BAD_REQUEST);
         }
 
@@ -85,13 +89,12 @@ public class TokenValidatorGatewayFilterFactory
         }
     }
 
-    private static String extractAccessToken(ServerHttpRequest request) throws NoAccessTokenFoundInQueryException, IncorrectAuthorizationHeaderException {
-        // TODO Simplify this method if only access_token request parameter is used?
+    private static String extractAccessToken(ServerHttpRequest request) throws TokenExtractionException {
         List<String> authorizationHeaderList = request.getHeaders().get("Authorization");
         List<String> accessTokenQueryList = request.getQueryParams().get("access_token");
 
         if (isAccessTokenAbsentFromRequest(authorizationHeaderList, accessTokenQueryList)) {
-            throw new NoAccessTokenFoundInQueryException();
+            throw new TokenExtractionException();
         }
 
         if (authorizationHeaderList != null) {
@@ -99,7 +102,7 @@ public class TokenValidatorGatewayFilterFactory
             List<String> splitAuthorization = Arrays.asList(authorization.split(" "));
 
             if (splitAuthorization.size() != 2 || !splitAuthorization.get(0).equals("Bearer")) {
-                throw new IncorrectAuthorizationHeaderException();
+                throw new TokenExtractionException();
             }
 
             return splitAuthorization.get(1);
@@ -154,7 +157,7 @@ public class TokenValidatorGatewayFilterFactory
     }
 
     private void addJwkSetToCache() throws ParseException {
-        String jwkSetString = gatewayService.getJwkSet(jwkSetUri);
+        String jwkSetString = restTemplate.getForObject(jwkSetUri, String.class);
         jwkSetCache = JWKSet.parse(jwkSetString);
     }
 
@@ -202,9 +205,5 @@ public class TokenValidatorGatewayFilterFactory
                                JWTClaimsSet jwtClaimsSet,
                                ClientID clientID,
                                JWSAlgorithm jwsAlg) {
-    }
-
-    public static class Config {
-        // there is nothing we need to add here as a parameter
     }
 }

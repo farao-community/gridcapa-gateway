@@ -7,5 +7,5 @@
 
 package com.farao_community.farao.gridcapa.gateway.exceptions;
 
-public class NoAccessTokenFoundInQueryException extends Exception {
+public class TokenExtractionException extends Exception {
 }
