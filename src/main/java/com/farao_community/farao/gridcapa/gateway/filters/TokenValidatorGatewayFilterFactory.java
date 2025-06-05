@@ -28,7 +28,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -38,6 +38,7 @@ import java.util.List;
 
 /**
  * @author Vincent Bochet {@literal <vincent.bochet at rte-france.com>}
+ * @author Daniel Thirion {@literal <daniel.thirion at rte-france.com>}
  */
 @Component
 public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<Object> {
@@ -46,7 +47,7 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
     private static final String UNAUTHORIZED_INVALID_PLAIN_JOSE_OBJECT_ENCODING = "{}: 401 Unauthorized, Invalid plain JOSE object encoding";
     private static final String UNAUTHORIZED_THE_TOKEN_CANNOT_BE_TRUSTED = "{}: 401 Unauthorized, The token cannot be trusted";
     private static final String UNAUTHORIZED_ISSUER_IS_NOT_ALLOWED = "{}: 401 Unauthorized, Issuer is not allowed: {}";
-    private static final String PARSING_ERROR = "{}: 500 Internal Server Error, error has been reached unexpectedly while parsing";
+    private static final String PARSING_ERROR = "500 Internal Server Error, error has been reached unexpectedly while parsing";
     private static final String CACHE_OUTDATED = "{}: Bad JSON Object Signing and Encryption, cache outdated";
 
     private static final String HEADER_USER_ID = "userId";
@@ -60,11 +61,11 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
 
     private JWKSet jwkSetCache = null;
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
 
-    public TokenValidatorGatewayFilterFactory(RestTemplate restTemplate) {
+    public TokenValidatorGatewayFilterFactory(final WebClient webClient) {
         super(Object.class);
-        this.restTemplate = restTemplate;
+        this.webClient = webClient;
     }
 
     @Override
@@ -139,31 +140,57 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
     }
 
     private Mono<Void> validateTokenAndSetHeaderUserId(FilterInfos filterInfos) {
-        boolean cacheRefreshed = false;
-        if (jwkSetCache == null) {
-            try {
-                addJwkSetToCache();
-                cacheRefreshed = true;
-            } catch (ParseException e) {
-                LOGGER.info(PARSING_ERROR, filterInfos.exchange().getRequest().getPath());
-                return completeWithCode(filterInfos.exchange(), HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+        final Mono<Void> cacheMono;
+
+        final boolean cacheWasNull = jwkSetCache == null;
+        if (cacheWasNull) {
+            cacheMono = addJwkSetToCache();
+        } else {
+            cacheMono = Mono.empty();
         }
 
-        try {
-            validateJwt(filterInfos);
-        } catch (JOSEException | BadJOSEException e) {
-            return handleValidationException(filterInfos, cacheRefreshed, e);
-        }
-
-        setHeaderUserId(filterInfos.exchange(), filterInfos.jwtClaimsSet().getSubject());
-
-        return filterInfos.chain().filter(filterInfos.exchange());
+        return cacheMono
+                .then(Mono.defer(() -> {
+                    try {
+                        validateJwt(filterInfos);
+                    } catch (JOSEException | BadJOSEException e) {
+                        return handleValidationException(filterInfos, cacheWasNull, e);
+                    }
+                    final ServerWebExchange newExchange = setHeaderUserIdInNewExchange(
+                            filterInfos.exchange(),
+                            filterInfos.jwtClaimsSet().getSubject()
+                    );
+                    return filterInfos.chain().filter(newExchange);
+                }));
     }
 
-    private void addJwkSetToCache() throws ParseException {
-        String jwkSetString = restTemplate.getForObject(jwkSetUri, String.class);
-        jwkSetCache = JWKSet.parse(jwkSetString);
+    private Mono<Void> addJwkSetToCache() {
+        return webClient.get()
+                .uri(jwkSetUri)
+                .retrieve()
+                .bodyToMono(String.class)
+                .<JWKSet>handle((jwkSetStr, sink) -> {
+                    try {
+                        sink.next(parseJwkSet(jwkSetStr));
+                    } catch (RuntimeException e) {
+                        LOGGER.error(PARSING_ERROR, e);
+                        sink.error(new JwkSetParsingException(PARSING_ERROR, e));
+                    }
+                })
+                .doOnNext(jwkSet -> jwkSetCache = jwkSet)
+                .then()
+                .onErrorResume(e -> {
+                    LOGGER.error("Impossible to update JWKSet cache : {}", e.getMessage(), e);
+                    return Mono.error(e);
+                });
+    }
+
+    private JWKSet parseJwkSet(String jwkSetString) {
+        try {
+            return JWKSet.parse(jwkSetString);
+        } catch (ParseException e) {
+            throw new JwkSetParsingException(PARSING_ERROR, e);
+        }
     }
 
     private void validateJwt(FilterInfos filterInfos) throws BadJOSEException, JOSEException {
@@ -188,10 +215,13 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         }
     }
 
-    protected static void setHeaderUserId(ServerWebExchange exchange, String userId) {
-        exchange.getRequest()
-            .mutate()
-            .headers(h -> h.set(HEADER_USER_ID, userId));
+    protected static ServerWebExchange setHeaderUserIdInNewExchange(ServerWebExchange exchange,
+                                                                    String userId) {
+        final ServerHttpRequest newRequest = exchange.getRequest()
+                .mutate()
+                .headers(h -> h.set(HEADER_USER_ID, userId))
+                .build();
+        return exchange.mutate().request(newRequest).build();
     }
 
     protected Mono<Void> completeWithCode(ServerWebExchange exchange, HttpStatus code) {
@@ -211,4 +241,11 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                                ClientID clientID,
                                JWSAlgorithm jwsAlg) {
     }
+
+    private static class JwkSetParsingException extends RuntimeException {
+        public JwkSetParsingException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
 }

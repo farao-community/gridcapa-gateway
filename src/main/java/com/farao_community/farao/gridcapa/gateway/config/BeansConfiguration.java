@@ -6,10 +6,11 @@
  */
 package com.farao_community.farao.gridcapa.gateway.config;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import static org.springframework.web.reactive.function.client.WebClient.Builder;
 
 /**
  * @author Vincent Bochet {@literal <vincent.bochet at rte-france.com>}
@@ -18,7 +19,7 @@ import org.springframework.web.client.RestTemplate;
 public class BeansConfiguration {
 
     @Bean
-    public RestTemplate getRestTemplate() {
-        return new RestTemplateBuilder().build();
+    public WebClient webClient(final Builder builder) {
+        return builder.build();
     }
 }
