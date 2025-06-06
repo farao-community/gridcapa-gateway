@@ -144,15 +144,9 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
     }
 
     private Mono<Void> validateTokenAndSetHeaderUserId(FilterInfos filterInfos) {
-        final Mono<Void> cacheMono;
 
         final boolean cacheWasNull = jwkSetCache == null;
-        if (cacheWasNull) {
-            cacheMono = addJwkSetToCache();
-        } else {
-            cacheMono = Mono.empty();
-        }
-
+        final Mono<Void> cacheMono = cacheWasNull ? addJwkSetToCache() : Mono.empty();
         return cacheMono
                 .then(Mono.defer(() -> filterWithValidatedJwt(filterInfos, cacheWasNull)));
     }
