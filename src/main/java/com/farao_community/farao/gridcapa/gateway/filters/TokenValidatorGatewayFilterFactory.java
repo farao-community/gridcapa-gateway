@@ -178,7 +178,7 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                 .bodyToMono(String.class)
                 .<JWKSet>handle((jwkSetStr, sink) -> {
                     try {
-                        sink.next(parseJwkSet(jwkSetStr));
+                        sink.next(JWKSet.parse(jwkSetStr));
                     } catch (RuntimeException | ParseException e) {
                         LOGGER.error(PARSING_ERROR, e);
                         sink.error(new JwkSetParsingException(PARSING_ERROR, e));
@@ -190,10 +190,6 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                     LOGGER.error("Impossible to update JWKSet cache : {}", e.getMessage(), e);
                     return Mono.error(e);
                 });
-    }
-
-    private JWKSet parseJwkSet(String jwkSetString) throws ParseException {
-        return JWKSet.parse(jwkSetString);
     }
 
     private void validateJwt(FilterInfos filterInfos) throws BadJOSEException, JOSEException {
