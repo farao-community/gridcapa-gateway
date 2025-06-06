@@ -68,9 +68,9 @@ class TokenValidatorGatewayFilterFactoryTest {
         MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
         MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
 
-        filterFactory.completeWithCode(exchange, HttpStatus.BAD_REQUEST).block();
+        filterFactory.completeWithCode(exchange, HttpStatus.I_AM_A_TEAPOT).block();
 
-        Assertions.assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        Assertions.assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
     }
 
     @Test
@@ -79,9 +79,9 @@ class TokenValidatorGatewayFilterFactoryTest {
                 .header("Upgrade", "websocket").build();
         MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
 
-        filterFactory.completeWithCode(exchange, HttpStatus.UNAUTHORIZED).block();
+        filterFactory.completeWithCode(exchange, HttpStatus.I_AM_A_TEAPOT).block();
 
-        Assertions.assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        Assertions.assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
     }
 
     @Test
