@@ -19,6 +19,9 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec;
+import org.springframework.web.reactive.function.client.WebClient.RequestHeadersUriSpec;
+import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -44,12 +47,12 @@ class TokenValidatorGatewayFilterFactoryTest {
     @BeforeEach
     void setUp() {
         webClient = Mockito.mock(WebClient.class);
-        WebClient.RequestHeadersUriSpec<?> uriSpec = Mockito.mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec<?> headersSpec = Mockito.mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec responseSpec = Mockito.mock(WebClient.ResponseSpec.class);
+        RequestHeadersUriSpec<?> uriSpec = Mockito.mock(RequestHeadersUriSpec.class);
+        RequestHeadersSpec<?> headersSpec = Mockito.mock(RequestHeadersSpec.class);
+        ResponseSpec responseSpec = Mockito.mock(ResponseSpec.class);
 
-        Mockito.<WebClient.RequestHeadersUriSpec<?>>when(webClient.get()).thenReturn(uriSpec);
-        Mockito.<WebClient.RequestHeadersSpec<?>>when(uriSpec.uri(Mockito.anyString())).thenReturn(headersSpec);
+        Mockito.<RequestHeadersUriSpec<?>>when(webClient.get()).thenReturn(uriSpec);
+        Mockito.<RequestHeadersSpec<?>>when(uriSpec.uri(Mockito.anyString())).thenReturn(headersSpec);
         Mockito.when(headersSpec.retrieve()).thenReturn(responseSpec);
         Mockito.when(responseSpec.bodyToMono(String.class)).thenReturn(Mono.just(DUMMY_JWK_SET));
 
@@ -204,12 +207,12 @@ class TokenValidatorGatewayFilterFactoryTest {
     }
 
     private void setupWebClientJwkSetResponse(String jwkSetBody) {
-        WebClient.RequestHeadersUriSpec<?> uriSpec = Mockito.mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec<?> headersSpec = Mockito.mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec responseSpec = Mockito.mock(WebClient.ResponseSpec.class);
+        RequestHeadersUriSpec<?> uriSpec = Mockito.mock(RequestHeadersUriSpec.class);
+        RequestHeadersSpec<?> headersSpec = Mockito.mock(RequestHeadersSpec.class);
+        ResponseSpec responseSpec = Mockito.mock(ResponseSpec.class);
 
-        Mockito.<WebClient.RequestHeadersUriSpec<?>>when(webClient.get()).thenReturn(uriSpec);
-        Mockito.<WebClient.RequestHeadersSpec<?>>when(uriSpec.uri(Mockito.anyString())).thenReturn(headersSpec);
+        Mockito.<RequestHeadersUriSpec<?>>when(webClient.get()).thenReturn(uriSpec);
+        Mockito.<RequestHeadersSpec<?>>when(uriSpec.uri(Mockito.anyString())).thenReturn(headersSpec);
         Mockito.when(headersSpec.retrieve()).thenReturn(responseSpec);
         Mockito.when(responseSpec.bodyToMono(String.class)).thenReturn(Mono.just(jwkSetBody));
     }
