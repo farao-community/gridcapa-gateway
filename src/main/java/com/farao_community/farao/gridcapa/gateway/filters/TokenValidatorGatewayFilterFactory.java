@@ -181,7 +181,7 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                         sink.next(JWKSet.parse(jwkSetStr));
                     } catch (ParseException e) {
                         LOGGER.error(PARSING_ERROR, e);
-                        sink.error(new RuntimeException(PARSING_ERROR, e));
+                        sink.error(e);
                     }
                 })
                 .doOnNext(jwkSet -> jwkSetCache = jwkSet)
