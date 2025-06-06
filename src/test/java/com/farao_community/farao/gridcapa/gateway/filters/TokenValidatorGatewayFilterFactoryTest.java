@@ -70,7 +70,9 @@ class TokenValidatorGatewayFilterFactoryTest {
 
         filterFactory.completeWithCode(exchange, HttpStatus.I_AM_A_TEAPOT).block();
 
-        Assertions.assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
+        ServerHttpResponse response = exchange.getResponse();
+        Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
+        Assertions.assertThat(response.getHeaders().getConnection()).isEmpty();
     }
 
     @Test
@@ -99,7 +101,7 @@ class TokenValidatorGatewayFilterFactoryTest {
     @Test
     void filterWithBadAuthorizationHeaderTest() {
         MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
-                .header("Authorization", "Bearer ")
+                .header("Authorization", "bad_value")
                 .build();
         MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
         GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
@@ -173,10 +175,7 @@ class TokenValidatorGatewayFilterFactoryTest {
         filterFactory.filter(exchange, chain).block();
 
         ServerHttpResponse response = exchange.getResponse();
-        Assertions.assertThat(
-                response.getStatusCode() == HttpStatus.UNAUTHORIZED ||
-                response.getStatusCode() == HttpStatus.BAD_REQUEST
-        ).isTrue();
+        Assertions.assertThat(response.getStatusCode()).isIn(HttpStatus.UNAUTHORIZED, HttpStatus.BAD_REQUEST);
     }
 
     @Test

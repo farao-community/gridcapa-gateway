@@ -73,7 +73,8 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         return this::filter;
     }
 
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange,
+                             GatewayFilterChain chain) {
         LOGGER.info("Filter : {}", getClass().getSimpleName());
 
         String token;
@@ -115,7 +116,8 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         }
     }
 
-    private static boolean isAccessTokenAbsentFromRequest(List<String> authorizationHeaderList, List<String> accessTokenQueryList) {
+    private static boolean isAccessTokenAbsentFromRequest(List<String> authorizationHeaderList,
+                                                          List<String> accessTokenQueryList) {
         boolean bothNull = authorizationHeaderList == null && accessTokenQueryList == null;
         boolean queryNullAndHeaderEmpty = authorizationHeaderList != null && accessTokenQueryList == null && authorizationHeaderList.isEmpty();
         boolean headerNullAndQueryEmpty = authorizationHeaderList == null && accessTokenQueryList != null && accessTokenQueryList.isEmpty();
@@ -124,7 +126,9 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         return bothNull || queryNullAndHeaderEmpty || headerNullAndQueryEmpty || bothEmpty;
     }
 
-    private Mono<Void> handleTokenAsJwt(String token, ServerWebExchange exchange, GatewayFilterChain chain) throws ParseException {
+    private Mono<Void> handleTokenAsJwt(String token,
+                                        ServerWebExchange exchange,
+                                        GatewayFilterChain chain) throws ParseException {
         JWT jwt = JWTParser.parse(token);
         JWTClaimsSet jwtClaimsSet = jwt.getJWTClaimsSet();
         ClientID clientID = new ClientID(jwtClaimsSet.getAudience().get(0));
@@ -189,7 +193,7 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
     }
 
     private JWKSet parseJwkSet(String jwkSetString) throws ParseException {
-            return JWKSet.parse(jwkSetString);
+        return JWKSet.parse(jwkSetString);
     }
 
     private void validateJwt(FilterInfos filterInfos) throws BadJOSEException, JOSEException {
@@ -203,7 +207,9 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         LOGGER.info("JWT Token verified, it can be trusted");
     }
 
-    private Mono<Void> handleValidationException(FilterInfos filterInfos, boolean cacheRefreshed, Exception e) {
+    private Mono<Void> handleValidationException(FilterInfos filterInfos,
+                                                 boolean cacheRefreshed,
+                                                 Exception e) {
         if (e instanceof BadJOSEException && !cacheRefreshed) {
             LOGGER.info(CACHE_OUTDATED, filterInfos.exchange().getRequest().getPath());
             jwkSetCache = null;
@@ -223,7 +229,8 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         return exchange.mutate().request(newRequest).build();
     }
 
-    protected Mono<Void> completeWithCode(ServerWebExchange exchange, HttpStatus code) {
+    protected Mono<Void> completeWithCode(ServerWebExchange exchange,
+                                          HttpStatus code) {
         exchange.getResponse().setStatusCode(code);
         if ("websocket".equalsIgnoreCase(exchange.getRequest().getHeaders().getUpgrade())) {
             // Force the connection to close for websockets handshakes to workaround apache
@@ -242,7 +249,8 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
     }
 
     private static class JwkSetParsingException extends RuntimeException {
-        public JwkSetParsingException(String message, Throwable cause) {
+        public JwkSetParsingException(String message,
+                                      Throwable cause) {
             super(message, cause);
         }
     }
