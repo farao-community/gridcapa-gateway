@@ -150,18 +150,21 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
         }
 
         return cacheMono
-                .then(Mono.defer(() -> {
-                    try {
-                        validateJwt(filterInfos);
-                    } catch (JOSEException | BadJOSEException e) {
-                        return handleValidationException(filterInfos, cacheWasNull, e);
-                    }
-                    final ServerWebExchange newExchange = setHeaderUserIdInNewExchange(
-                            filterInfos.exchange(),
-                            filterInfos.jwtClaimsSet().getSubject()
-                    );
-                    return filterInfos.chain().filter(newExchange);
-                }));
+                .then(Mono.defer(() -> filterWithValidatedJwt(filterInfos, cacheWasNull)));
+    }
+
+    private Mono<Void> filterWithValidatedJwt(final FilterInfos filterInfos,
+                                              final boolean cacheWasNull) {
+        try {
+            validateJwt(filterInfos);
+        } catch (JOSEException | BadJOSEException e) {
+            return handleValidationException(filterInfos, cacheWasNull, e);
+        }
+        final ServerWebExchange newExchange = setHeaderUserIdInNewExchange(
+                filterInfos.exchange(),
+                filterInfos.jwtClaimsSet().getSubject()
+        );
+        return filterInfos.chain().filter(newExchange);
     }
 
     private Mono<Void> addJwkSetToCache() {
@@ -172,7 +175,7 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                 .<JWKSet>handle((jwkSetStr, sink) -> {
                     try {
                         sink.next(parseJwkSet(jwkSetStr));
-                    } catch (RuntimeException e) {
+                    } catch (RuntimeException | ParseException e) {
                         LOGGER.error(PARSING_ERROR, e);
                         sink.error(new JwkSetParsingException(PARSING_ERROR, e));
                     }
@@ -185,12 +188,8 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                 });
     }
 
-    private JWKSet parseJwkSet(String jwkSetString) {
-        try {
+    private JWKSet parseJwkSet(String jwkSetString) throws ParseException {
             return JWKSet.parse(jwkSetString);
-        } catch (ParseException e) {
-            throw new JwkSetParsingException(PARSING_ERROR, e);
-        }
     }
 
     private void validateJwt(FilterInfos filterInfos) throws BadJOSEException, JOSEException {
