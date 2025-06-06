@@ -86,7 +86,9 @@ class TokenValidatorGatewayFilterFactoryTest {
 
         filterFactory.completeWithCode(exchange, HttpStatus.I_AM_A_TEAPOT).block();
 
-        Assertions.assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
+        ServerHttpResponse response = exchange.getResponse();
+        Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
+        Assertions.assertThat(response.getHeaders().getConnection()).containsExactly("close");
     }
 
     @Test
