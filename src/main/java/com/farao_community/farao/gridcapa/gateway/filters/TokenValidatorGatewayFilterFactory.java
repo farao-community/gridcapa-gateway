@@ -179,9 +179,9 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                 .<JWKSet>handle((jwkSetStr, sink) -> {
                     try {
                         sink.next(JWKSet.parse(jwkSetStr));
-                    } catch (RuntimeException | ParseException e) {
+                    } catch (ParseException e) {
                         LOGGER.error(PARSING_ERROR, e);
-                        sink.error(new JwkSetParsingException(PARSING_ERROR, e));
+                        sink.error(new RuntimeException(PARSING_ERROR, e));
                     }
                 })
                 .doOnNext(jwkSet -> jwkSetCache = jwkSet)
@@ -242,13 +242,6 @@ public class TokenValidatorGatewayFilterFactory extends AbstractGatewayFilterFac
                                JWTClaimsSet jwtClaimsSet,
                                ClientID clientID,
                                JWSAlgorithm jwsAlg) {
-    }
-
-    private static class JwkSetParsingException extends RuntimeException {
-        public JwkSetParsingException(String message,
-                                      Throwable cause) {
-            super(message, cause);
-        }
     }
 
 }
