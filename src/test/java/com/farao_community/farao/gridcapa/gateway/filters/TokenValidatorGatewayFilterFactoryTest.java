@@ -25,8 +25,6 @@ import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 /**
  * @author Vincent Bochet {@literal <vincent.bochet at rte-france.com>}
  * @author Daniel Thirion {@literal <daniel.thirion at rte-france.com>}
@@ -47,9 +45,9 @@ class TokenValidatorGatewayFilterFactoryTest {
     @BeforeEach
     void setUp() {
         webClient = Mockito.mock(WebClient.class);
-        RequestHeadersUriSpec<?> uriSpec = Mockito.mock(RequestHeadersUriSpec.class);
-        RequestHeadersSpec<?> headersSpec = Mockito.mock(RequestHeadersSpec.class);
-        ResponseSpec responseSpec = Mockito.mock(ResponseSpec.class);
+        final RequestHeadersUriSpec<?> uriSpec = Mockito.mock(RequestHeadersUriSpec.class);
+        final RequestHeadersSpec<?> headersSpec = Mockito.mock(RequestHeadersSpec.class);
+        final ResponseSpec responseSpec = Mockito.mock(ResponseSpec.class);
 
         Mockito.<RequestHeadersUriSpec<?>>when(webClient.get()).thenReturn(uriSpec);
         Mockito.<RequestHeadersSpec<?>>when(uriSpec.uri(Mockito.anyString())).thenReturn(headersSpec);
@@ -68,118 +66,120 @@ class TokenValidatorGatewayFilterFactoryTest {
 
     @Test
     void completeWithCodeStandardTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
 
         filterFactory.completeWithCode(exchange, HttpStatus.I_AM_A_TEAPOT).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
         Assertions.assertThat(response.getHeaders().getConnection()).isEmpty();
     }
 
     @Test
     void completeWithCodeWebsocketTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .header("Upgrade", "websocket").build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
 
         filterFactory.completeWithCode(exchange, HttpStatus.I_AM_A_TEAPOT).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.I_AM_A_TEAPOT);
         Assertions.assertThat(response.getHeaders().getConnection()).containsExactly("close");
     }
 
     @Test
     void filterWithNoAuthTokenTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
         filterFactory.filter(exchange, chain).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void filterWithBadAuthorizationHeaderTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .header("Authorization", "bad_value")
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
         filterFactory.filter(exchange, chain).block();
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void filterWithInvalidJwtFromHeaderTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .header("Authorization", "Bearer fakeValue")
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
         filterFactory.filter(exchange, chain).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void filterWithInvalidJwtFromQueryParamTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .queryParam("access_token", "fakeValue")
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
         filterFactory.filter(exchange, chain).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void filterWithUnknownJwtIssuerTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .header("Authorization", "Bearer " + JWT_WITH_UNKNOWN_ISSUER)
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
         filterFactory.filter(exchange, chain).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void filterWithJwkSetParseErrorTest() {
         setupWebClientJwkSetResponse("invalid response");
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .queryParam("access_token", JWT_WITH_KNOWN_ISSUER)
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
-        assertThrows(RuntimeException.class, () -> filterFactory.filter(exchange, chain).block());
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final Mono<Void> filter = filterFactory.filter(exchange, chain);
+        Assertions.assertThatExceptionOfType(RuntimeException.class)
+                .isThrownBy(filter::block);
     }
 
     @Test
     void filterWithValidJwkSetButInvalidJwtTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .queryParam("access_token", JWT_WITH_KNOWN_ISSUER)
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
         filterFactory.filter(exchange, chain).block();
 
-        ServerHttpResponse response = exchange.getResponse();
+        final ServerHttpResponse response = exchange.getResponse();
         Assertions.assertThat(response.getStatusCode()).isIn(HttpStatus.UNAUTHORIZED, HttpStatus.BAD_REQUEST);
     }
 
@@ -189,29 +189,31 @@ class TokenValidatorGatewayFilterFactoryTest {
         ReflectionTestUtils.setField(filterFactory, "jwkSetCache", null);
         setupWebClientJwkSetResponse("invalid");
 
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path")
                 .header("Authorization", "Bearer " + JWT_WITH_KNOWN_ISSUER)
                 .build();
-        MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
+        final MockServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final GatewayFilterChain chain = Mockito.mock(GatewayFilterChain.class);
 
-        assertThrows(RuntimeException.class, () -> filterFactory.filter(exchange, chain).block());
+        final Mono<Void> filter = filterFactory.filter(exchange, chain);
+        Assertions.assertThatExceptionOfType(RuntimeException.class)
+                .isThrownBy(filter::block);
     }
 
     @Test
     void setHeaderUserIdInNewExchangeTest() {
-        MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
-        ServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
-        String userId = "007";
+        final MockServerHttpRequest request = MockServerHttpRequest.method(HttpMethod.GET, "/path").build();
+        final ServerWebExchange exchange = new MockServerWebExchange.Builder(request).build();
+        final String userId = "007";
 
-        ServerWebExchange exchangeWithHeader = TokenValidatorGatewayFilterFactory.setHeaderUserIdInNewExchange(exchange, userId);
+        final ServerWebExchange exchangeWithHeader = TokenValidatorGatewayFilterFactory.setHeaderUserIdInNewExchange(exchange, userId);
         Assertions.assertThat(exchangeWithHeader.getRequest().getHeaders().getFirst("userId")).isEqualTo(userId);
     }
 
     private void setupWebClientJwkSetResponse(String jwkSetBody) {
-        RequestHeadersUriSpec<?> uriSpec = Mockito.mock(RequestHeadersUriSpec.class);
-        RequestHeadersSpec<?> headersSpec = Mockito.mock(RequestHeadersSpec.class);
-        ResponseSpec responseSpec = Mockito.mock(ResponseSpec.class);
+        final RequestHeadersUriSpec<?> uriSpec = Mockito.mock(RequestHeadersUriSpec.class);
+        final RequestHeadersSpec<?> headersSpec = Mockito.mock(RequestHeadersSpec.class);
+        final ResponseSpec responseSpec = Mockito.mock(ResponseSpec.class);
 
         Mockito.<RequestHeadersUriSpec<?>>when(webClient.get()).thenReturn(uriSpec);
         Mockito.<RequestHeadersSpec<?>>when(uriSpec.uri(Mockito.anyString())).thenReturn(headersSpec);
