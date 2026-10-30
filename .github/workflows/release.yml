@@ -54,13 +54,6 @@ jobs:
           commit_message: Prepare release ${{ github.event.inputs.releaseVersion }}
           tagging_message: v${{ github.event.inputs.releaseVersion }}
 
-      - name: Release Maven package
-        run: mvn --batch-mode -Pdefault,release deploy -DskipTests
-        env:
-          MAVEN_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
       - name: Re-build with Maven to avoid multiple .jar achives
         run: mvn --batch-mode -Pdefault,coverage clean install -DskipTests
 
